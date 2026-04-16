@@ -3,5 +3,3 @@ streamlit
 pillow
 torch
 numpy
-matplotlib
-seaborn
