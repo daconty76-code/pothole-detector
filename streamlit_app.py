@@ -2,20 +2,28 @@
 # Automated Urban Infrastructure Inspection: Real-Time Pothole Detection
 # Deployed on Streamlit Community Cloud
 
-import os
-import time
 import sys
-import warnings
-warnings.filterwarnings('ignore')
+import subprocess
 
-# Import streamlit first (it handles some path issues)
+# ============================================
+# CRITICAL: Force headless OpenCV before any imports
+# This removes the GUI version that Ultralytics forces
+# ============================================
+try:
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", "opencv-python-headless"])
+    print("✅ OpenCV headless forced installation complete")
+except Exception as e:
+    print(f"⚠️ OpenCV fix warning: {e}")
+
+# Now safe to import
 import streamlit as st
-
-# Then import other libraries
 import cv2
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO
+import os
+import time
 
 # Page configuration
 st.set_page_config(
