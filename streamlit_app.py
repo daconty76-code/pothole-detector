@@ -1,26 +1,12 @@
 # streamlit_app.py
 # Automated Urban Infrastructure Inspection: Real-Time Pothole Detection
 # Deployed on Streamlit Community Cloud
+# NO OpenCV - uses PIL for image processing
 
-import sys
-import subprocess
-
-# ============================================
-# CRITICAL: Force headless OpenCV before any imports
-# This removes the GUI version that Ultralytics forces
-# ============================================
-try:
-    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python", "opencv-contrib-python"])
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--force-reinstall", "opencv-python-headless"])
-    print("✅ OpenCV headless forced installation complete")
-except Exception as e:
-    print(f"⚠️ OpenCV fix warning: {e}")
-
-# Now safe to import
 import streamlit as st
-import cv2
+import torch
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from ultralytics import YOLO
 import os
 import time
@@ -46,7 +32,7 @@ confidence_threshold = st.sidebar.slider(
     max_value=1.0,
     value=0.25,
     step=0.01,
-    help="Lower values detect more potholes but increase false positives. Higher values are more precise but may miss some potholes."
+    help="Lower values detect more potholes but increase false positives."
 )
 
 st.sidebar.markdown("---")
@@ -54,7 +40,6 @@ st.sidebar.subheader("Model Information")
 st.sidebar.write("**Model:** YOLOv8n")
 st.sidebar.write("**Dataset:** RDD2022")
 st.sidebar.write("**Training Epochs:** 50")
-st.sidebar.write("**Inference Speed:** 48 FPS on GPU")
 
 # Class names from RDD2022 dataset
 CLASS_NAMES = [
@@ -65,13 +50,13 @@ CLASS_NAMES = [
     'Pothole'
 ]
 
-# Color mapping for bounding boxes (BGR format)
+# Color mapping for bounding boxes (RGB format for PIL)
 COLOR_MAP = {
-    'longitudinal crack': (255, 0, 0),
-    'transverse crack': (0, 255, 0),
-    'alligator crack': (255, 255, 0),
-    'other corruption': (0, 255, 255),
-    'Pothole': (0, 0, 255)
+    'longitudinal crack': (255, 0, 0),      # Red
+    'transverse crack': (0, 255, 0),        # Green
+    'alligator crack': (255, 255, 0),       # Yellow
+    'other corruption': (0, 255, 255),      # Cyan
+    'Pothole': (255, 0, 0)                  # Red for potholes
 }
 
 @st.cache_resource
@@ -85,9 +70,10 @@ def load_model():
         st.error("Model file not found. Please check deployment.")
         return None
 
-def draw_boxes(image, detections, confidence_thresh):
-    """Draw bounding boxes on image"""
+def draw_boxes_pil(image, detections, confidence_thresh):
+    """Draw bounding boxes using PIL (no OpenCV)"""
     img_copy = image.copy()
+    draw = ImageDraw.Draw(img_copy)
     detected_potholes = 0
     
     if detections and len(detections) > 0:
@@ -102,13 +88,15 @@ def draw_boxes(image, detections, confidence_thresh):
             if class_name == 'Pothole':
                 detected_potholes += 1
             
-            color = COLOR_MAP.get(class_name, (0, 0, 255))
+            color = COLOR_MAP.get(class_name, (255, 0, 0))
             
-            cv2.rectangle(img_copy, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+            # Draw rectangle
+            draw.rectangle([(x1, y1), (x2, y2)], outline=color, width=3)
             
+            # Draw label
             label = f"{class_name}: {conf:.2f}"
-            cv2.putText(img_copy, label, (int(x1), int(y1) - 5),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            draw.rectangle([(x1, y1 - 18), (x1 + len(label) * 7, y1)], fill=color)
+            draw.text((x1 + 2, y1 - 16), label, fill=(255, 255, 255))
     
     return img_copy, detected_potholes
 
@@ -153,17 +141,13 @@ def main():
         
         if st.button("Detect Potholes", type="primary"):
             with st.spinner("Running detection..."):
-                image_np = np.array(image)
-                image_cv = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+                detections, inference_time = process_image(image, model, confidence_threshold)
                 
-                detections, inference_time = process_image(image_cv, model, confidence_threshold)
-                
-                result_image, pothole_count = draw_boxes(image_cv, detections, confidence_threshold)
-                result_image_rgb = cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB)
+                result_image, pothole_count = draw_boxes_pil(image, detections, confidence_threshold)
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.image(result_image_rgb, caption="Detection Results", use_container_width=True)
+                    st.image(result_image, caption="Detection Results", use_container_width=True)
                 
                 with col2:
                     st.metric("Inference Time", f"{inference_time:.1f} ms")
