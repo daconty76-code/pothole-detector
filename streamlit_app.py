@@ -2,13 +2,19 @@
 # Automated Urban Infrastructure Inspection: Real-Time Pothole Detection
 # Deployed on Streamlit Community Cloud
 
+import os
+import time
+import sys
+import warnings
+warnings.filterwarnings('ignore')
+
+# Import streamlit first (it handles some path issues)
 import streamlit as st
+
+# Then import other libraries
 import cv2
 import numpy as np
 from PIL import Image
-import tempfile
-import os
-import time
 from ultralytics import YOLO
 
 # Page configuration
@@ -19,7 +25,7 @@ st.set_page_config(
 )
 
 # Title
-st.title(" Automated Urban Infrastructure Inspection")
+st.title("🛣️ Automated Urban Infrastructure Inspection")
 st.markdown("### Real-Time Pothole Detection using YOLOv8n")
 st.markdown("Upload an image to detect potholes and road damage.")
 
@@ -126,7 +132,7 @@ def main():
     if model is None:
         return
     
-    st.success("Model loaded successfully")
+    st.success("✅ Model loaded successfully")
     
     uploaded_file = st.file_uploader(
         "Upload an image (JPG, JPEG, PNG)",
@@ -157,9 +163,9 @@ def main():
                     st.metric("Potholes Detected", pothole_count)
                     
                     if pothole_count > 0:
-                        st.warning(f" {pothole_count} pothole(s) detected!")
+                        st.warning(f"⚠️ {pothole_count} pothole(s) detected!")
                     else:
-                        st.success("No potholes detected")
+                        st.success("✅ No potholes detected")
                 
                 if len(detections) > 0:
                     with st.expander("Detailed Detections"):
