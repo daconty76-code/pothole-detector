@@ -1,5 +1,4 @@
-ultralytics
+onnxruntime
 streamlit
 pillow
-torch
 numpy
