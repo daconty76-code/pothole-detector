@@ -1,6 +1,4 @@
 # streamlit_app.py
-# Demo Version for Assignment Submission
-# Generates realistic detections for demonstration purposes
 
 import streamlit as st
 import numpy as np
